@@ -22,7 +22,7 @@ def create_table(table_name, point_type_dict):
 	table_columns_and_type_str = [" ".join(item) for item in point_type_list]
 	table_columns_and_type_str = str(tuple(table_columns_and_type_str)).replace("'","")
 	
-	conn = sqlite3.connect('../sunspec_database/BEAGLEBONE_BLACK_1.db')
+	conn = sqlite3.connect('../sunspec_database/BBBK_'+db_timestamp+'.db')
 	#conn = sqlite3.connect('../sunspec_database/sunspec_'+db_timestamp+'_BEAGLEBONE_BLACK_1.db')
 	c = conn.cursor()
 	c.execute("CREATE TABLE IF NOT EXISTS "+table_name+table_columns_and_type_str)
@@ -42,7 +42,7 @@ def data_entry(table_name, point_value_dict):
 	table_columns_str = str(tuple(table_columns_str)).replace("'","")
 	data = [item[1] for item in point_value_list]
 	data = tuple(data)
-	conn = sqlite3.connect('../sunspec_database/BEAGLEBONE_BLACK_1.db')
+	conn = sqlite3.connect('../sunspec_database/BBBK_'+db_timestamp+'.db')
 	#conn = sqlite3.connect('../sunspec_database/sunspec_'+db_timestamp+'_BEAGLEBONE_BLACK_1.db')
 	c = conn.cursor()
 	sql_table_values_str = []
