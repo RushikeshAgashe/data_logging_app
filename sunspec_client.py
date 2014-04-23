@@ -1,6 +1,4 @@
 import sunspec.core.client as client
-from subprocess import call
-import time
 import argparse
 import sys
 import os
@@ -64,7 +62,7 @@ class Model(object):
 		self.points = []
 		self.xml_input_filepath = ''
 		self.xmldoc = None
-		self.db_points = None
+		self.data_points_obj = None
 		self.db_tablename = ''
 
 class Point(object):
@@ -87,6 +85,13 @@ def get_attr_value(xml_element, id):
 		value = ''
 	return value
 
+def calc_model_offsets(models):
+	for model in models:
+		if 1 == int(model.id):
+			model.offset = SUNS_ID_SIZE
+		else:
+			model.offset = models[model.index - 1].offset + int(models[model.index -1].len) + MODEL_HEADER_SIZE
+		
 def point_init(point):
 	point.id = get_attr_value(point.xml_point, 'id')
 	point.offset = get_attr_value(point.xml_point, 'offset')
@@ -105,7 +110,6 @@ def model_init(model):
 	xml_model = model.xmldoc.getElementsByTagName("model")[0]
 	model.len = get_attr_value(xml_model, 'len')
 	model.name = get_attr_value(xml_model, 'name')
-	# model.offset = get_model_offset(model)
 
 	xml_points = model.xmldoc.getElementsByTagName("model")[0].getElementsByTagName("point")
 	for xml_point in xml_points:
@@ -116,44 +120,34 @@ def model_init(model):
 def add_to_write_queue(element):
 	write_queue.append(element[0])
 
-def get_write_value(value, point):
-	datatype = point.xml_point.attributes['type'].value
-	try:
-		sf = point.xml_point.attributes['sf'].value
-	except:
-		sf = None
-	
-	if datatype in ['uint16','int16']:
-		value = int(value)
-		if sf != None:
-			value = value*1000
-		value = pack('>h', value)
+def get_formatted_write_value(value, point,data_points_obj):
+	if point.type in ['uint16','int16','uint32','int32']:
+		if point.sf:
+			value = float(value)/(10**int(data_points_obj[point.id].value_sf))
+		else:
+			value = int(value)
 
-	elif datatype in ['uint32', 'int32']:
-		value = int(value)
-		if sf != None:
-			value = value*1000
-		value = pack('>l', value)
-	else:
-		pass
+		if point.type in ['uint16','int16']:
+			value = pack('>h', value)
+		else:
+			value = pack('>l', value)
+	
 	return value
 
 def write_values(d, models):
 	while write_queue:
 		for model in models:
 			for point in model.points:
-				if point.xml_point.attributes['id'].value == write_queue[0]['id']:
-					modbus_address = int(point.xml_point.attributes['offset'].value) + 68 + 4
-					print modbus_address
-					print write_queue[0]['value']
-					write_value = get_write_value(write_queue[0]['value'], point)
+				if point.id == write_queue[0]['id']:
+					modbus_address = model.offset + MODEL_HEADER_SIZE + int(point.offset)
+					write_value = write_queue[0]['value']
+					write_value = get_formatted_write_value(write_value, point, model.data_points_obj)
 					d.device.write(modbus_address,write_value)
 		del write_queue[0]
 
 def populate_database(d, models):
 	timestamp = datetime.now()
 	for model in models:
-		data_points = d.device.models.values()[model.index][0].points
 		for point in model.points:
 			point_attr_dict = OrderedDict()
 			point_attr_dict['timestamp'] = timestamp
@@ -161,9 +155,9 @@ def populate_database(d, models):
 			point_attr_dict['units'] = point.units
 			point_attr_dict['type'] = point.type
 			if point_attr_dict['type'] not in ['pad','sunssf']:
-				point_attr_dict['base_value'] = data_points[point_attr_dict['id']].value_base
+				point_attr_dict['base_value'] = model.data_points_obj[point.id].value_base
 			if point.sf:
-				point_attr_dict['sf'] = data_points[point_attr_dict['id']].value_sf
+				point_attr_dict['sf'] = model.data_points_obj[point.id].value_sf
 			if not point.access:
 				point.access = 'r'
 			point_attr_dict['access'] = point.access
@@ -182,8 +176,9 @@ def run(timestamp,port, protocol='RTU', slave_id=1, baudrate='9600'):
 		models.append(Model(model_id,index))
 	for model in models:
 		model_init(model)		
+		model.data_points_obj = d.device.models.values()[model.index][0].points
 		create_table(model.db_tablename,point_attr_dict)
-
+	calc_model_offsets(models)
 	runFlag = True
 	while runFlag == True:
 		write_values(d,models)
@@ -206,6 +201,8 @@ def stop():
 	while runFlag == False:
 		pass
 
+MODEL_HEADER_SIZE = 2
+SUNS_ID_SIZE = 2
 runFlag = True
 DEBUG = False
 db_timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
