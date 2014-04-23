@@ -1,12 +1,18 @@
 <sunSpecModels v="1">
   <!-- 64161: SST_Inverter -->
-  <model id="64161" len="8" name="sst_inverter">
-    <block len="8">
-      <point id="Vbat" offset="0" type="uint32" sf="E3_SF" mandatory="true" />
-      <point id="Vldc" offset="2" type="uint32" sf="E3_SF" mandatory="true" />
+  <model id="64161" len="20" name="sst_inverter">
+    <block len="20">
+      <point id="Vbat" offset="0" type="uint32" sf="E3_SF" mandatory="true" access="r" />
+      <point id="Vldc" offset="2" type="uint32" sf="E3_SF" mandatory="true" access="rw"/>
       <point id="Vhdc" offset="4" type="uint32" sf="E3_SF" mandatory="true" />
-      <point id="E3_SF" offset="6" type="sunssf"  mandatory="true" />
-      <point id="Pad" offset="7" type="uint16"  mandatory="true" />
+      <point id="Vref" offset="6" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="dummy0" offset="8" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="dummy1" offset="10" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="dummy2" offset="12" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="dummy3" offset="14" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="dummy4" offset="16" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="E3_SF" offset="18" type="sunssf"  mandatory="true" />
+      <point id="Pad" offset="19" type="pad"  mandatory="true" />
     </block>
   </model>
   <strings id="64161" locale="en">
