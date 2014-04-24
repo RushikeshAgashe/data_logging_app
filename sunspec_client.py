@@ -8,7 +8,7 @@ from xml.dom import minidom
 from collections import OrderedDict
 import sqlite3
 from datetime import datetime, date
-
+from struct import pack
 
 class ModelReader():
 	def __init__(self, input_filepath='', output_filepath=''):
@@ -23,7 +23,6 @@ def create_table(table_name, point_type_dict):
 	table_columns_and_type_str = str(tuple(table_columns_and_type_str)).replace("'","")
 	
 	conn = sqlite3.connect('../sunspec_database/BBBK_'+db_timestamp+'.db')
-	#conn = sqlite3.connect('../sunspec_database/sunspec_'+db_timestamp+'_BEAGLEBONE_BLACK_1.db')
 	c = conn.cursor()
 	c.execute("CREATE TABLE IF NOT EXISTS "+table_name+table_columns_and_type_str)
 	try:
@@ -43,7 +42,6 @@ def data_entry(table_name, point_value_dict):
 	data = [item[1] for item in point_value_list]
 	data = tuple(data)
 	conn = sqlite3.connect('../sunspec_database/BBBK_'+db_timestamp+'.db')
-	#conn = sqlite3.connect('../sunspec_database/sunspec_'+db_timestamp+'_BEAGLEBONE_BLACK_1.db')
 	c = conn.cursor()
 	sql_table_values_str = []
 	for i in range(0,len(table_columns_str.split(','))):
@@ -60,13 +58,16 @@ def clear_screen():
     	else:
         	os.system("clear")
 
+def add_to_write_queue(element):
+	write_queue.append(element[0])
+
 def stop():
 	global runFlag
 	runFlag = False
 	while runFlag == False:
 		pass
 	
-def run(timestamp,port, protocol='RTU', slave_id='1', baudrate='9600'):
+def run(timestamp,port, protocol='RTU', slave_id=1, baudrate='9600'):
 	global runFlag
 	global db_timestamp
 	db_timestamp = timestamp
@@ -96,8 +97,19 @@ def run(timestamp,port, protocol='RTU', slave_id='1', baudrate='9600'):
 
 	runFlag = True
 	while runFlag == True:
-		d.read()
 		model_ids = d.device.models.keys()
+		while(write_queue):
+			for model_id in model_ids:
+				rb = reader_blocks[str(model_id)]
+				xmldoc = minidom.parse(rb.input_filepath)
+				points = xmldoc.getElementsByTagName("model")[0].getElementsByTagName("point")
+				for point in points:
+					if point.attributes['id'].value == write_queue[0]['id']:
+						modbus_address = int(point.attributes['offset'].value) + 4
+						write_value = int(write_queue[0]['value'])	
+						d.device.write(modbus_address,pack('>h',write_value))
+			del write_queue[0]
+		d.read()
 		if __name__ == "__main__":
 			clear_screen()
 		itr = 0
@@ -136,6 +148,7 @@ def run(timestamp,port, protocol='RTU', slave_id='1', baudrate='9600'):
 runFlag = True
 DEBUG = False
 db_timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+write_queue = []
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='SunSpec MODBUS Polling Client')
 	parser.add_argument('--port',required=True, help='Serial COM Port')
