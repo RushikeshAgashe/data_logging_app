@@ -6,7 +6,7 @@
       <point id="Vldc" offset="2" type="uint32" sf="E3_SF" mandatory="true" access="rw"/>
       <point id="Vhdc" offset="4" type="uint32" sf="E3_SF" mandatory="true" />
       <point id="Vref" offset="6" type="uint32" sf="E3_SF" mandatory="true" />
-      <point id="dummy0" offset="8" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="dummy0" offset="8" type="uint32" sf="E3_SF" mandatory="true" access="rw"/>
       <point id="dummy1" offset="10" type="uint32" sf="E3_SF" mandatory="true" />
       <point id="dummy2" offset="12" type="uint32" sf="E3_SF" mandatory="true" />
       <point id="dummy3" offset="14" type="uint32" sf="E3_SF" mandatory="true" />

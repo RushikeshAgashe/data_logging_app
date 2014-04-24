@@ -10,10 +10,6 @@ import sqlite3
 from datetime import datetime, date
 from struct import pack
 
-class ModelReader():
-	def __init__(self, input_filepath='', output_filepath=''):
-		self.input_filepath = input_filepath
-		self.output_filepath = output_filepath
 
 def create_table(table_name, point_type_dict):
 	point_type_list = []
@@ -58,97 +54,172 @@ def clear_screen():
     	else:
         	os.system("clear")
 
+class Model(object):
+	def __init__(self,model_id, index):
+		self.index = index
+		self.id = model_id
+		self.len    = None
+		self.name   = ''
+		self.offset = None
+		self.points = []
+		self.xml_input_filepath = ''
+		self.xmldoc = None
+		self.db_points = None
+		self.db_tablename = ''
+
+class Point(object):
+	def __init__(self, xml_point):
+		self.xml_point = xml_point
+		self.id = ''
+		self.offset = ''
+		self.len  = ''
+		self.type = ''
+		self.base_value = ''
+		self.sf = ''
+		self.units = ''
+		self.access = ''
+		self.mandatory = ''
+
+def get_attr_value(xml_element, id):
+	try:
+		value = xml_element.attributes[id].value.encode('ascii')
+	except KeyError:
+		value = ''
+	return value
+
+def point_init(point):
+	point.id = get_attr_value(point.xml_point, 'id')
+	point.offset = get_attr_value(point.xml_point, 'offset')
+	point.len = get_attr_value(point.xml_point, 'len')
+	point.type = get_attr_value(point.xml_point, 'type')
+	point.sf = get_attr_value(point.xml_point, 'sf')
+	point.units = get_attr_value(point.xml_point, 'units')
+	point.mandatory = get_attr_value(point.xml_point, 'mandatory')
+	point.access = get_attr_value(point.xml_point, 'access')
+
+def model_init(model):
+	model.db_tablename = 'smdx_data_' + '{0:05}'.format(model.id)
+	model.xml_input_filepath = dirpath + 'smdx_' + '{0:05}'.format(model.id) + '.xml'
+	model.xmldoc = minidom.parse(model.xml_input_filepath)
+	
+	xml_model = model.xmldoc.getElementsByTagName("model")[0]
+	model.len = get_attr_value(xml_model, 'len')
+	model.name = get_attr_value(xml_model, 'name')
+	# model.offset = get_model_offset(model)
+
+	xml_points = model.xmldoc.getElementsByTagName("model")[0].getElementsByTagName("point")
+	for xml_point in xml_points:
+		model.points.append(Point(xml_point))
+	for point in model.points:
+		point_init(point)
+
 def add_to_write_queue(element):
 	write_queue.append(element[0])
 
-def stop():
-	global runFlag
-	runFlag = False
-	while runFlag == False:
-		pass
+def get_write_value(value, point):
+	datatype = point.xml_point.attributes['type'].value
+	try:
+		sf = point.xml_point.attributes['sf'].value
+	except:
+		sf = None
 	
+	if datatype in ['uint16','int16']:
+		value = int(value)
+		if sf != None:
+			value = value*1000
+		value = pack('>h', value)
+
+	elif datatype in ['uint32', 'int32']:
+		value = int(value)
+		if sf != None:
+			value = value*1000
+		value = pack('>l', value)
+	else:
+		pass
+	return value
+
+def write_values(d, models):
+	while write_queue:
+		for model in models:
+			for point in model.points:
+				if point.xml_point.attributes['id'].value == write_queue[0]['id']:
+					modbus_address = int(point.xml_point.attributes['offset'].value) + 68 + 4
+					print modbus_address
+					print write_queue[0]['value']
+					write_value = get_write_value(write_queue[0]['value'], point)
+					d.device.write(modbus_address,write_value)
+		del write_queue[0]
+
+def populate_database(d, models):
+	timestamp = datetime.now()
+	for model in models:
+		data_points = d.device.models.values()[model.index][0].points
+		for point in model.points:
+			point_attr_dict = OrderedDict()
+			point_attr_dict['timestamp'] = timestamp
+			point_attr_dict['id'] = point.id
+			point_attr_dict['units'] = point.units
+			point_attr_dict['type'] = point.type
+			if point_attr_dict['type'] not in ['pad','sunssf']:
+				point_attr_dict['base_value'] = data_points[point_attr_dict['id']].value_base
+			if point.sf:
+				point_attr_dict['sf'] = data_points[point_attr_dict['id']].value_sf
+			if not point.access:
+				point.access = 'r'
+			point_attr_dict['access'] = point.access
+			data_entry(model.db_tablename,point_attr_dict)
+
+
 def run(timestamp,port, protocol='RTU', slave_id=1, baudrate='9600'):
 	global runFlag
 	global db_timestamp
 	db_timestamp = timestamp
 	d = client.SunSpecClientDevice(client.RTU,slave_id=slave_id,name=port,baudrate=baudrate)
 	d.read()
+	models = []
 	model_ids = d.device.models.keys()
-	dirpath = '../pysunspec-clone/sunspec/models/smdx/'
-	reader_blocks = {}
-	point_attr_dict = OrderedDict()
-	point_attr_dict ['timestamp'] 	= 'TIMESTAMP'
-	point_attr_dict ['id'] 		= 'TEXT'
-	point_attr_dict ['base_value'] 	= 'TEXT'
-	point_attr_dict ['sf'] 		= 'TEXT'
-	point_attr_dict ['units'] 	= 'TEXT'
-	point_attr_dict ['type'] 	= 'TEXT'
-	point_attr_dict ['access'] 	= 'TEXT'
-		
-	for model_id in model_ids:
-		reader_blocks[str(model_id)] = ModelReader()
-		rb = reader_blocks[str(model_id)]	
-		rb.input_filepath = dirpath + 'smdx_' + '{0:05}'.format(model_id) + '.xml'
-		rb.output_filepath = 'smdx_data_' + '{0:05}'.format(model_id) + '.xml' 
-		xmldoc = minidom.parse(rb.input_filepath)
-		points = xmldoc.getElementsByTagName("model")[0].getElementsByTagName("point")
-		table_name = 'smdx_data_' + '{0:05}'.format(model_id)
-		create_table(table_name,point_attr_dict)
+	for index,model_id in enumerate(model_ids):
+		models.append(Model(model_id,index))
+	for model in models:
+		model_init(model)		
+		create_table(model.db_tablename,point_attr_dict)
 
 	runFlag = True
 	while runFlag == True:
-		model_ids = d.device.models.keys()
-		while(write_queue):
-			for model_id in model_ids:
-				rb = reader_blocks[str(model_id)]
-				xmldoc = minidom.parse(rb.input_filepath)
-				points = xmldoc.getElementsByTagName("model")[0].getElementsByTagName("point")
-				for point in points:
-					if point.attributes['id'].value == write_queue[0]['id']:
-						modbus_address = int(point.attributes['offset'].value) + 4
-						write_value = int(write_queue[0]['value'])	
-						d.device.write(modbus_address,pack('>h',write_value))
-			del write_queue[0]
+		write_values(d,models)
 		d.read()
+		populate_database(d, models)
 		if __name__ == "__main__":
 			clear_screen()
-		itr = 0
-		timestamp = datetime.now()
-		for model_id in model_ids:
-			rb = reader_blocks[str(model_id)]
-			xmldoc = minidom.parse(rb.input_filepath)
-			table_name = 'smdx_data_' + '{0:05}'.format(model_id)
-			points = xmldoc.getElementsByTagName("model")[0].getElementsByTagName("point")
-			data_points = d.device.models.values()[itr][0].points
-			for point in points:
-				point_attr_dict = OrderedDict()
-				point_attr_dict['timestamp'] = timestamp
-				point_attr_dict['id'] = point.attributes['id'].value.encode('ascii')
-				point_attr_dict['type'] = point.attributes['type'].value.encode('ascii')
-				if point_attr_dict['type'] not in ['pad','sunssf']:
-					point_attr_dict['base_value'] = data_points[point_attr_dict['id']].value_base
-				try:
-					point_attr_dict['sf'] = data_points[point_attr_dict['id']].value_sf
-				except KeyError:
-					pass
-				try:
-					point_attr_dict['units'] = point.attributes['units'].value.encode('ascii')
-				except KeyError:
-					pass
-				try:
-					point_attr_dict['access'] = point.attributes['access'].value.encode('ascii')
-				except KeyError:
-					point_attr_dict['access'] = 'r'
-				data_entry(table_name,point_attr_dict)
-			itr = itr + 1
-		if __name__ == "__main__" or DEBUG==True:
 			print d
+		elif DEBUG == True:
+			print d
+		else:
+			pass
+		
 	d.close()
 	return
+
+def stop():
+	global runFlag
+	runFlag = False
+	while runFlag == False:
+		pass
+
 runFlag = True
 DEBUG = False
 db_timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 write_queue = []
+dirpath = '../pysunspec-clone/sunspec/models/smdx/'
+point_attr_dict = OrderedDict()
+point_attr_dict ['timestamp'] 	= 'TIMESTAMP'
+point_attr_dict ['id'] 			= 'TEXT'
+point_attr_dict ['base_value'] 	= 'TEXT'
+point_attr_dict ['sf'] 			= 'TEXT'
+point_attr_dict ['units']	 	= 'TEXT'
+point_attr_dict ['type'] 		= 'TEXT'
+point_attr_dict ['access'] 		= 'TEXT'
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='SunSpec MODBUS Polling Client')
 	parser.add_argument('--port',required=True, help='Serial COM Port')
