@@ -1,10 +1,12 @@
 <sunSpecModels v="1">
-  <!-- 161: SST_Inverter -->
-  <model id="64161" len="3" name="sst_inverter">
-    <block len="3">
-      <point id="Vbat" offset="0" type="uint16" mandatory="true" />
-      <point id="Vldc" offset="1" type="uint16" mandatory="true" />
-      <point id="Vhdc" offset="2" type="uint16" mandatory="true" />
+  <!-- 64161: SST_Inverter -->
+  <model id="64161" len="8" name="sst_inverter">
+    <block len="8">
+      <point id="Vbat" offset="0" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="Vldc" offset="2" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="Vhdc" offset="4" type="uint32" sf="E3_SF" mandatory="true" />
+      <point id="E3_SF" offset="6" type="sunssf"  mandatory="true" />
+      <point id="Pad" offset="7" type="uint16"  mandatory="true" />
     </block>
   </model>
   <strings id="64161" locale="en">
