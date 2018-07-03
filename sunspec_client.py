@@ -8,7 +8,6 @@ import sqlite3
 from datetime import datetime, date
 from struct import pack
 
-
 def create_table(table_name, point_type_dict):
 	point_type_list = []
 	for key,value in point_type_dict.iteritems():
@@ -116,33 +115,52 @@ def model_init(model):
 		model.points.append(Point(xml_point))
 	for point in model.points:
 		point_init(point)
+		point_id_map[point.id] = point
+		model_id_map[point.id] = model
 
 def add_to_write_queue(element):
+	point = point_id_map[element[0]['id']]
+	model = model_id_map[element[0]['id']]
+	value = element[0]['value']
+	if point.sf:
+		value = int(float(value)/(10**int(model.data_points_obj[point.id].value_sf)))
+	else:
+		value = int(value)
+
+	if point.type == 'uint16':
+		if value > 0xFFFF:
+			raise ValueError()
+	elif point.type == 'int16':
+		if value < -0x8000 or value > 0x7FFF:
+			raise ValueError() 
+	elif point.type == 'uint32':
+		if value > 0xFFFFFFFF:
+			raise ValueError() 
+	elif point.type == 'int32':
+		if value < -0x80000000 or value > 0x7FFFFFFF:
+			raise ValueError() 
+	else:
+		pass
+
+	element[0]['value'] = value
 	write_queue.append(element[0])
 
-def get_formatted_write_value(value, point,data_points_obj):
-	if point.type in ['uint16','int16','uint32','int32']:
-		if point.sf:
-			value = float(value)/(10**int(data_points_obj[point.id].value_sf))
-		else:
-			value = int(value)
-
-		if point.type in ['uint16','int16']:
-			value = pack('>h', value)
-		else:
-			value = pack('>l', value)
+def get_formatted_write_value(value, point):
+	if point.type in ['uint16','int16']:
+		value = pack('>h', value)
+	else:
+		value = pack('>l', value)
 	
 	return value
 
 def write_values(d, models):
 	while write_queue:
-		for model in models:
-			for point in model.points:
-				if point.id == write_queue[0]['id']:
-					modbus_address = model.offset + MODEL_HEADER_SIZE + int(point.offset)
-					write_value = write_queue[0]['value']
-					write_value = get_formatted_write_value(write_value, point, model.data_points_obj)
-					d.device.write(modbus_address,write_value)
+		point = point_id_map[write_queue[0]['id']]
+		model = model_id_map[write_queue[0]['id']]
+		modbus_address = model.offset + MODEL_HEADER_SIZE + int(point.offset)
+		write_value = write_queue[0]['value']
+		write_value = get_formatted_write_value(write_value, point)
+		d.device.write(modbus_address,write_value)
 		del write_queue[0]
 
 def populate_database(d, models):
@@ -164,7 +182,7 @@ def populate_database(d, models):
 			data_entry(model.db_tablename,point_attr_dict)
 
 
-def run(timestamp,port, protocol='RTU', slave_id=1, baudrate='9600'):
+def run(timestamp,port, protocol='RTU', slave_id=1, baudrate=19200):
 	global runFlag
 	global db_timestamp
 	db_timestamp = timestamp
@@ -201,6 +219,8 @@ def stop():
 	while runFlag == False:
 		pass
 
+point_id_map = {}
+model_id_map = {}
 MODEL_HEADER_SIZE = 2
 SUNS_ID_SIZE = 2
 runFlag = True
@@ -222,9 +242,9 @@ if __name__ == "__main__":
 	parser.add_argument('--port',required=True, help='Serial COM Port')
 	parser.add_argument('--protocol', nargs='?', default='RTU', help='Protocol for MODBUS communication')
 	parser.add_argument('--slave_id', nargs='?',type = int, default=1, help='MODBUS Slave ID')
-	parser.add_argument('--baudrate', nargs='?', type=int, default=9600, help='MODBUS Serial COM Baudrate')
+	parser.add_argument('--baudrate', nargs='?', type=int, default=19200, help='MODBUS Serial COM Baudrate')
 	args = parser.parse_args()
-
+	print args
 	if args.protocol == 'TCP':
 	    protocol = client.TCP
 	else:
