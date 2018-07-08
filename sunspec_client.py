@@ -15,7 +15,7 @@ def create_table(table_name, point_type_dict):
 	table_columns_and_type_str = [" ".join(item) for item in point_type_list]
 	table_columns_and_type_str = str(tuple(table_columns_and_type_str)).replace("'","")
 	
-	conn = sqlite3.connect('../sunspec_database/BBBK_'+db_timestamp+'.db')
+	conn = sqlite3.connect(db_path+device_name+db_timestamp+'.db')
 	c = conn.cursor()
 	c.execute("CREATE TABLE IF NOT EXISTS "+table_name+table_columns_and_type_str)
 	try:
@@ -34,7 +34,7 @@ def data_entry(table_name, point_value_dict):
 	table_columns_str = str(tuple(table_columns_str)).replace("'","")
 	data = [item[1] for item in point_value_list]
 	data = tuple(data)
-	conn = sqlite3.connect('../sunspec_database/BBBK_'+db_timestamp+'.db')
+	conn = sqlite3.connect(db_path+device_name+db_timestamp+'.db')
 	c = conn.cursor()
 	sql_table_values_str = []
 	for i in range(0,len(table_columns_str.split(','))):
@@ -225,6 +225,11 @@ MODEL_HEADER_SIZE = 2
 SUNS_ID_SIZE = 2
 runFlag = True
 DEBUG = False
+try:
+	device_name = os.environ["DEVICE_NAME"]+'_'
+except KeyError:
+	device_name = 'BBBK_unknown_'
+db_path  = '../sunspec_database/'
 db_timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 write_queue = []
 dirpath = '../pysunspec-clone/sunspec/models/smdx/'
