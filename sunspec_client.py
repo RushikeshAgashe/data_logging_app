@@ -185,9 +185,17 @@ def populate_database(d, models):
 def run(timestamp,port, protocol='RTU', slave_id=1, baudrate=19200):
 	global runFlag
 	global db_timestamp
+	global device_name
+	try:
+		device_name = os.environ["DEVICE_NAME"]+'_'
+	except KeyError:
+		pass
 	db_timestamp = timestamp
-	d = client.SunSpecClientDevice(client.RTU,slave_id=slave_id,name=port,baudrate=baudrate)
-	d.read()
+	try:
+		d = client.SunSpecClientDevice(client.RTU,slave_id=slave_id,name=port,baudrate=baudrate)
+		d.read()
+	except:
+		raise IOError("Modbus Read Error!")
 	models = []
 	model_ids = d.device.models.keys()
 	for index,model_id in enumerate(model_ids):
@@ -200,7 +208,10 @@ def run(timestamp,port, protocol='RTU', slave_id=1, baudrate=19200):
 	runFlag = True
 	while runFlag == True:
 		write_values(d,models)
-		d.read()
+		try:
+			d.read()
+		except:
+			continue
 		populate_database(d, models)
 		if __name__ == "__main__":
 			clear_screen()
@@ -216,8 +227,7 @@ def run(timestamp,port, protocol='RTU', slave_id=1, baudrate=19200):
 def stop():
 	global runFlag
 	runFlag = False
-	while runFlag == False:
-		pass
+	return
 
 point_id_map = {}
 model_id_map = {}
@@ -225,6 +235,7 @@ MODEL_HEADER_SIZE = 2
 SUNS_ID_SIZE = 2
 runFlag = True
 DEBUG = False
+device_name = 'BBBK_unknown'
 try:
 	device_name = os.environ["DEVICE_NAME"]+'_'
 except KeyError:
