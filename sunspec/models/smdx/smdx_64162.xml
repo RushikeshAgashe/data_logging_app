@@ -1,17 +1,19 @@
 <sunSpecModels v="1">
   <!-- 64161: SST_Inverter -->
-  <model id="64162" len="18" name="sst_inverter">
-    <block len="18">
-      <point id="Vbat" offset="0" type="int32" sf="E3_sf" mandatory="true" access="r"/>
-      <point id="Vhdc_ref" offset="2" type="int32" sf="E3_sf" mandatory="true" access="rw"/>
-      <point id="Vhdc" offset="4" type="int32" sf="E3_sf" mandatory="true" access="r"/>
-      <point id="Vldc_ref" offset="6" type="int32" sf="E3_sf" mandatory="true" access="rw"/>
-      <point id="Vldc" offset="8" type="int32" sf="E3_sf" mandatory="true" access="r"/>
-      <point id="Iinv_ref" offset="10" type="int32" sf="E3_sf" mandatory="true" access="rw"/>
-      <point id="Iinv_ref_ramp_rate_per_s" offset="12" type="int32" sf="E3_sf" mandatory="true" access="rw"/>
-      <point id="Iinv" offset="14" type="int32" sf="E3_sf" mandatory="true" access="r"/>
-      <point id="E3_sf" offset="16" type="sunssf"  mandatory="true" />
-      <point id="Pad" offset="17" type="pad"  mandatory="true" />
+  <model id="64162" len="22" name="sst_inverter">
+    <block len="22">
+      <point id="Vbat" offset="0" type="int32" sf="E3_sf" mandatory="true" access="r" units="V"/>
+      <point id="Vhdc_ref" offset="2" type="int32" sf="E3_sf" mandatory="true" access="rw" units="V"/>
+      <point id="Vhdc" offset="4" type="int32" sf="E3_sf" mandatory="true" access="r" units="V"/>
+      <point id="Vldc_ref" offset="6" type="int32" sf="E3_sf" mandatory="true" access="rw" units="V"/>
+      <point id="Vldc" offset="8" type="int32" sf="E3_sf" mandatory="true" access="r" units="V"/>
+      <point id="Iinv_ref" offset="10" type="int32" sf="E3_sf" mandatory="true" access="rw" units="A"/>
+      <point id="Iinv_ref_ramp_rate_per_s" offset="12" type="int32" sf="E3_sf" mandatory="true" access="rw" units="A/s"/>
+      <point id="Iinv" offset="14" type="int32" sf="E3_sf" mandatory="true" access="r" units="A"/>
+      <point id="Iinv_rms" offset="16" type="int32" sf="E3_sf" mandatory="true" access="r" units="A"/>
+      <point id="Iload_rms" offset="18" type="int32" sf="E3_sf" mandatory="true" access="r" units="A"/>
+      <point id="E3_sf" offset="20" type="sunssf"  mandatory="true" />
+      <point id="Pad" offset="21" type="pad"  mandatory="true" />
     </block>
   </model>
   <strings id="64162" locale="en">
