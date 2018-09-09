@@ -246,7 +246,7 @@ except KeyError:
 db_path  = '../sunspec_database/'
 db_timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 write_queue = []
-dirpath = '../pysunspec-clone/sunspec/models/smdx/'
+dirpath = '../data_logging_app/sunspec/models/smdx/'
 point_attr_dict = OrderedDict()
 point_attr_dict ['timestamp'] 	= 'TIMESTAMP'
 point_attr_dict ['id'] 			= 'TEXT'
